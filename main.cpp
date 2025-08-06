@@ -19,7 +19,7 @@ extern controller Controller1;
 extern inertial inertialSensor;
 // A global instance of competition
 competition Competition;
-
+brain Brain;
 // define your global instances of motors and other devices here
 
 /*---------------------------------------------------------------------------*/
@@ -33,11 +33,7 @@ competition Competition;
 /*---------------------------------------------------------------------------*/
 
 void pre_auton(void) {
-initializeDevices();
-  InertialSensor.calibrate();
-  while (InertialSensor.isCalibrating()) {
-    wait(100, msec);
-  }
+
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
@@ -56,7 +52,7 @@ void autonomous(void) {
   
   // ..........................................................................
 
-  avanzarRecto(2.0,50);
+moverMotores6();
 
   // ..........................................................................
 }
@@ -99,9 +95,10 @@ int main() {
 
   // Run the pre-autonomous function.
   pre_auton();
-
+  autonomous();
   // Prevent main from exiting with an infinite loop.
+
   while (true) {
     wait(100, msec);
-  }
+}
 }
