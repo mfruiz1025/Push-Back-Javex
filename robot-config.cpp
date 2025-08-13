@@ -1,20 +1,22 @@
-#pragma once
-#include "vex.h"
-
-using namespace vex;
+#include "robot-config.h"
 
 // Motores lado izquierdo
-extern motor leftFront;
-extern motor leftMiddle;
-extern motor leftBack;
+motor leftFront(PORT5, ratio18_1, false);
+motor leftMiddle(PORT3, ratio18_1, false);
+motor leftBack(PORT20, ratio18_1, false);
 
 // Motores lado derecho
-extern motor rightFront;
-extern motor rightMiddle;
-extern motor rightBack;
+motor rightFront(PORT1, ratio18_1, true);
+motor rightMiddle(PORT4, ratio18_1, true);
+motor rightBack(PORT11, ratio18_1, true);
 
-// Sensor de inercia
-extern inertial InertialSensor;
+inertial InertialSensor(PORT7);
 
-// Declaración de la función de inicialización
-void vexcodeInit(void);
+// Inicialización de VEXcode
+void vexcodeInit(void) {
+  // Calibrar inercia
+  InertialSensor.calibrate();
+  while (InertialSensor.isCalibrating()) {
+    wait(100, msec);
+  }
+}
