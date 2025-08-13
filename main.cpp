@@ -33,7 +33,7 @@ brain Brain;
 /*---------------------------------------------------------------------------*/
 
 void pre_auton(void) {
-
+  vexcodeInit();
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
@@ -52,7 +52,7 @@ void autonomous(void) {
   
   // ..........................................................................
 
-moverMotores6();
+ avanzarRectoInercia(1, 40, 0.4,8);
 
   // ..........................................................................
 }
