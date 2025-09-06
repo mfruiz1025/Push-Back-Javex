@@ -11,32 +11,30 @@
 #include <cmath>
 #include <algorithm>
 
-using namespace vex;
-
 // A global instance of competition
-competition Competition;
+vex::competition Competition;
 
 // DECLARACIONES GLOBALES
 // Declaración del controlador
-controller Controller = controller(primary);
+vex::controller Controller = vex::controller(vex::controllerType::primary);
 
 // Declaración del GPS
-gps GPS = gps(PORT10, 0.0, 0.0, distanceUnits::mm, 0.0, turnType::right);
+vex::gps GPS = vex::gps(vex::PORT20, 750.0, 400.0, vex::distanceUnits::mm, 0.0, vex::turnType::right);
 
 // Declaraciones de motores
-motor LeftMotor1 = motor(PORT1, ratio18_1, false);
-motor LeftMotor2 = motor(PORT2, ratio18_1, false);
-motor LeftMotor3 = motor(PORT3, ratio18_1, false);
-motor LeftMotor4 = motor(PORT4, ratio18_1, false);
+vex::motor LeftMotor1 = vex::motor(vex::PORT1, vex::gearSetting::ratio18_1, false);
+vex::motor LeftMotor2 = vex::motor(vex::PORT2, vex::gearSetting::ratio18_1, false);
+vex::motor LeftMotor3 = vex::motor(vex::PORT3, vex::gearSetting::ratio18_1, false);
+vex::motor LeftMotor4 = vex::motor(vex::PORT4, vex::gearSetting::ratio18_1, false);
 
-motor RightMotor1 = motor(PORT5, ratio18_1, true);
-motor RightMotor2 = motor(PORT6, ratio18_1, true);
-motor RightMotor3 = motor(PORT7, ratio18_1, true);
-motor RightMotor4 = motor(PORT8, ratio18_1, true);
+vex::motor RightMotor1 = vex::motor(vex::PORT7, vex::gearSetting::ratio18_1, true);
+vex::motor RightMotor2 = vex::motor(vex::PORT8, vex::gearSetting::ratio18_1, true);
+vex::motor RightMotor3 = vex::motor(vex::PORT9, vex::gearSetting::ratio18_1, true);
+vex::motor RightMotor4 = vex::motor(vex::PORT10, vex::gearSetting::ratio18_1, true);
 
 // Grupos de motores para la base
-motor_group LeftDrive = motor_group(LeftMotor1, LeftMotor2, LeftMotor3, LeftMotor4);
-motor_group RightDrive = motor_group(RightMotor1, RightMotor2, RightMotor3, RightMotor4);
+vex::motor_group LeftDrive = vex::motor_group(LeftMotor1, LeftMotor2, LeftMotor3, LeftMotor4);
+vex::motor_group RightDrive = vex::motor_group(RightMotor1, RightMotor2, RightMotor3, RightMotor4);
 
 // Constantes para PID/proporcional (ajustar según pruebas reales en el robot)
 const double KP_TURN = 0.8;       // Ganancia proporcional para giros
@@ -47,42 +45,42 @@ const double DRIVE_THRESHOLD = 20.0; // Umbral de error en mm para posición
 const double MAX_TURN_SPEED = 50.0;  // Velocidad máxima para giros (%)
 const double MAX_DRIVE_SPEED = 80.0; // Velocidad máxima para avance (%)
 const double LOOP_DELAY = 20.0;      // Delay en ms para loops de control
-const double TIMEOUT_SEC = 10.0;     // Timeout en segundos
+const double TIMEOUT_SEC = 15.0;     // Timeout en segundos (aumentado para mayor margen)
 
 // Función auxiliar para calcular la diferencia de ángulo normalizada (-180 a 180 grados)
 double angleDifference(double current, double target) {
-  double diff = fmod(target - current + 180.0, 360.0) - 180.0;
+  double diff = std::fmod(target - current + 180.0, 360.0) - 180.0;
   return diff;
 }
 
 // Función para girar el robot a un heading específico usando GPS
 void turnToHeading(double targetHeading) {
-  timer timeoutTimer;
+  vex::timer timeoutTimer;
   timeoutTimer.clear();
 
-  double error = angleDifference(GPS.heading(degrees), targetHeading);
+  double error = angleDifference(GPS.heading(vex::degrees), targetHeading);
 
-  while (fabs(error) > TURN_THRESHOLD && timeoutTimer.time(seconds) < TIMEOUT_SEC) {
+  while (std::fabs(error) > TURN_THRESHOLD && timeoutTimer.time(vex::seconds) < TIMEOUT_SEC) {
     double speed = KP_TURN * error;
 
     // Clamp de velocidad
     speed = std::max(-MAX_TURN_SPEED, std::min(MAX_TURN_SPEED, speed));
 
     // Giro en el lugar
-    LeftDrive.spin(forward, speed, percent);
-    RightDrive.spin(forward, -speed, percent);
+    LeftDrive.spin(vex::forward, speed, vex::percent);
+    RightDrive.spin(vex::forward, -speed, vex::percent);
 
-    wait(LOOP_DELAY, msec);
+    vex::task::sleep(static_cast<int>(LOOP_DELAY)); // Cambiado a vex::task::sleep
 
-    error = angleDifference(GPS.heading(degrees), targetHeading);
+    error = angleDifference(GPS.heading(vex::degrees), targetHeading);
   }
 
   // Detener motores
-  LeftDrive.stop(brakeType::brake);
-  RightDrive.stop(brakeType::brake);
+  LeftDrive.stop(vex::brakeType::brake);
+  RightDrive.stop(vex::brakeType::brake);
 
-  // Log para depuración
-  /*if (timeoutTimer.time(seconds) >= TIMEOUT_SEC) {
+  // Log para depuración (mantener comentado)
+  /*if (timeoutTimer.time(vex::seconds) >= TIMEOUT_SEC) {
     Brain.Screen.print("Timeout en turnToHeading");
     Brain.Screen.newLine();
   }*/
@@ -90,19 +88,19 @@ void turnToHeading(double targetHeading) {
 
 // Función para mover el robot a una posición específica (x, y) en mm usando GPS
 void driveToPosition(double targetX, double targetY) {
-  timer timeoutTimer;
+  vex::timer timeoutTimer;
   timeoutTimer.clear();
 
-  double currentX = GPS.xPosition(mm);
-  double currentY = GPS.yPosition(mm);
-  double distance = sqrt(pow(targetX - currentX, 2) + pow(targetY - currentY, 2));
+  double currentX = GPS.xPosition(vex::distanceUnits::mm);
+  double currentY = GPS.yPosition(vex::distanceUnits::mm);
+  double distance = std::sqrt(std::pow(targetX - currentX, 2) + std::pow(targetY - currentY, 2));
 
-  while (distance > DRIVE_THRESHOLD && timeoutTimer.time(seconds) < TIMEOUT_SEC) {
+  while (distance > DRIVE_THRESHOLD && timeoutTimer.time(vex::seconds) < TIMEOUT_SEC) {
     // Calcular heading deseado
-    double desiredHeading = atan2(targetY - currentY, targetX - currentX) * 180.0 / M_PI;
+    double desiredHeading = std::atan2(targetY - currentY, targetX - currentX) * 180.0 / M_PI;
     if (desiredHeading < 0) desiredHeading += 360.0;
 
-    double headingError = angleDifference(GPS.heading(degrees), desiredHeading);
+    double headingError = angleDifference(GPS.heading(vex::degrees), desiredHeading);
 
     // Velocidad base basada en distancia
     double driveSpeed = KP_DRIVE * distance;
@@ -116,23 +114,23 @@ void driveToPosition(double targetX, double targetY) {
     leftSpeed = std::max(-MAX_DRIVE_SPEED, std::min(MAX_DRIVE_SPEED, leftSpeed));
     rightSpeed = std::max(-MAX_DRIVE_SPEED, std::min(MAX_DRIVE_SPEED, rightSpeed));
 
-    LeftDrive.spin(forward, leftSpeed, percent);
-    RightDrive.spin(forward, rightSpeed, percent);
+    LeftDrive.spin(vex::forward, leftSpeed, vex::percent);
+    RightDrive.spin(vex::forward, rightSpeed, vex::percent);
 
-    wait(LOOP_DELAY, msec);
+    vex::task::sleep(static_cast<int>(LOOP_DELAY)); // Cambiado a vex::task::sleep
 
     // Actualizar posición y distancia
-    currentX = GPS.xPosition(mm);
-    currentY = GPS.yPosition(mm);
-    distance = sqrt(pow(targetX - currentX, 2) + pow(targetY - currentY, 2));
+    currentX = GPS.xPosition(vex::distanceUnits::mm);
+    currentY = GPS.yPosition(vex::distanceUnits::mm);
+    distance = std::sqrt(std::pow(targetX - currentX, 2) + std::pow(targetY - currentY, 2));
   }
 
   // Detener motores
-  LeftDrive.stop(brakeType::brake);
-  RightDrive.stop(brakeType::brake);
+  LeftDrive.stop(vex::brakeType::brake);
+  RightDrive.stop(vex::brakeType::brake);
 
-  // Log para depuración
-  /*if (timeoutTimer.time(seconds) >= TIMEOUT_SEC) {
+  // Log para depuración (mantener comentado)
+  /*if (timeoutTimer.time(vex::seconds) >= TIMEOUT_SEC) {
     Brain.Screen.print("Timeout en driveToPosition");
     Brain.Screen.newLine();
   }*/
@@ -146,14 +144,9 @@ void pre_auton(void) {
   // Inicializar GPS
   GPS.calibrate();
   while (GPS.isCalibrating()) {
-    wait(50, msec);
+    vex::task::sleep(50); // Cambiado a vex::task::sleep
   }
 
-  // Confirmación en pantalla
-  /*Brain.Screen.print("GPS calibrado exitosamente.");
-  Brain.Screen.newLine();
-  */
- 
   // Resetear encoders de motores
   LeftDrive.resetPosition();
   RightDrive.resetPosition();
@@ -164,21 +157,21 @@ void pre_auton(void) {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  // Pruebita: Mover en un cuadrado de 500 mm x 500 mm
-  // Mover a (500, 0)
-  driveToPosition(500.0, 0.0);
+  // Pruebita: Mover en un cuadrado de 500 mm x 500 mm, ajustado por offsets (750, 400)
+  // Mover a (1250, 400) - Primer lado
+  driveToPosition(1250.0, 400.0);
   // Girar a 90 grados
   turnToHeading(90.0);
-  // Mover a (500, 500)
-  driveToPosition(500.0, 500.0);
+  // Mover a (1250, 900) - Segundo lado
+  driveToPosition(1250.0, 900.0);
   // Girar a 180 grados
   turnToHeading(180.0);
-  // Mover a (0, 500)
-  driveToPosition(0.0, 500.0);
+  // Mover a (750, 900) - Tercer lado
+  driveToPosition(750.0, 900.0);
   // Girar a 270 grados
   turnToHeading(270.0);
-  // Volver a (0, 0)
-  driveToPosition(0.0, 0.0);
+  // Volver a (750, 400) - Cuarto lado
+  driveToPosition(750.0, 400.0);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -188,16 +181,10 @@ void autonomous(void) {
 void usercontrol(void) {
   while (1) {
     // Modo de manejo Tank
-    LeftDrive.spin(forward, Controller.Axis3.position(), percent);
-    RightDrive.spin(forward, Controller.Axis2.position(), percent);
+    LeftDrive.spin(vex::forward, Controller.Axis3.position(), vex::percent);
+    RightDrive.spin(vex::forward, Controller.Axis2.position(), vex::percent);
 
-    // Imprimir en el cerebro
-    /*
-    Brain.Screen.setCursor(1, 1);
-    Brain.Screen.print("X: %.2f mm, Y: %.2f mm, H: %.2f deg",GPS.xPosition(mm), GPS.yPosition(mm), GPS.heading(degrees));
-    */
-
-    wait(20, msec);
+    vex::task::sleep(20); // Cambiado a vex::task::sleep
   }
 }
 
@@ -215,6 +202,6 @@ int main() {
 
   // Bucle
   while (true) {
-    wait(100, msec);
+    vex::task::sleep(100); // Cambiado a vex::task::sleep
   }
 }
