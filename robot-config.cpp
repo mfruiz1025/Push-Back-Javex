@@ -10,13 +10,6 @@ motor rightFront(PORT1, ratio18_1, true);
 motor rightMiddle(PORT4, ratio18_1, true);
 motor rightBack(PORT11, ratio18_1, true);
 
-inertial InertialSensor(PORT7);
+inertial inertialSensor(PORT10);
 
-// Inicialización de VEXcode
-void vexcodeInit(void) {
-  // Calibrar inercia
-  InertialSensor.calibrate();
-  while (InertialSensor.isCalibrating()) {
-    wait(100, msec);
-  }
-}
+

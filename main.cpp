@@ -10,8 +10,6 @@
 #include "vex.h"
 #include "drive-functions.h"
 #include "robot-config.h"
-
-
 using namespace vex;
 
 extern brain Brain;
@@ -33,7 +31,7 @@ brain Brain;
 /*---------------------------------------------------------------------------*/
 
 void pre_auton(void) {
-  vexcodeInit();
+
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
@@ -52,8 +50,14 @@ void autonomous(void) {
   
   // ..........................................................................
 
- avanzarRectoInercia(1, 40, 0.4,8);
+inertialSensor.calibrate();
 
+wait(100,msec);
+
+driveStraightIMU(50,3000);
+turnToAngle(90);
+driveStraightIMU(50,2000);
+turnToAngle(180);
   // ..........................................................................
 }
 

@@ -14,7 +14,4 @@ extern motor rightMiddle;
 extern motor rightBack;
 
 // Sensor de inercia
-extern inertial InertialSensor;
-
-// Declaración de la función de inicialización
-void vexcodeInit(void);
+extern inertial inertialSensor;

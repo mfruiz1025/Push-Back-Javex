@@ -2,44 +2,58 @@
 #include "robot-config.h"
 using namespace vex;
 
-// Avanzar recto usando inercia y 6 motores
-inline void avanzarRectoInercia(float revsObjetivo, float velBase = 40, float kP = 0.5, float extraDerecha = 5) {
-  InertialSensor.resetHeading();
-  float rumboObjetivo = InertialSensor.heading();
+// Mover recto con corrección de rumbo usando IMU
+void driveStraightIMU(int speed, int tiempo_ms) {
+  inertialSensor.setHeading(0, degrees); // Reiniciar rumbo
+  int start = vex::timer::system();
 
-  // Reset encoders usando setPosition
-  leftFront.setPosition(0, rev);
-  leftMiddle.setPosition(0, rev);
-  leftBack.setPosition(0, rev);
-  rightFront.setPosition(0, rev);
-  rightMiddle.setPosition(0, rev);
-  rightBack.setPosition(0, rev);
+  while (vex::timer::system() - start < tiempo_ms) {
+    double error = 0 - inertialSensor.heading(); // desviación
+    double correction = error * 0.5; // constante proporcional
 
-  while (fabs(leftFront.position(rev)) < revsObjetivo) {
-    float error = InertialSensor.heading() - rumboObjetivo;
-    float correccion = error * kP;
+    leftFront.spin(fwd, speed + correction, pct);
+    leftMiddle.spin(fwd, speed + correction, pct);
+    leftBack.spin(fwd, speed + correction, pct);
 
-    // Lado izquierdo
-    float velIzq = velBase - correccion;
-    // Lado derecho con corrección + compensación extra fija
-    float velDer = velBase + correccion + extraDerecha;
-
-    leftFront.spin(forward, velIzq, percent);
-    leftMiddle.spin(forward, velIzq, percent);
-    leftBack.spin(forward, velIzq, percent);
-
-    rightFront.spin(forward, velDer, percent);
-    rightMiddle.spin(forward, velDer, percent);
-    rightBack.spin(forward, velDer, percent);
+    rightFront.spin(fwd, speed - correction, pct);
+    rightMiddle.spin(fwd, speed - correction, pct);
+    rightBack.spin(fwd, speed - correction, pct);
 
     wait(20, msec);
   }
 
-  // Detener motores
-  leftFront.stop(brake);
-  leftMiddle.stop(brake);
-  leftBack.stop(brake);
-  rightFront.stop(brake);
-  rightMiddle.stop(brake);
-  rightBack.stop(brake);
+  leftFront.stop();
+  leftMiddle.stop();
+  leftBack.stop();
+  rightFront.stop();
+  rightMiddle.stop();
+  rightBack.stop();
+}
+
+// Girar a un ángulo específico usando IMU
+void turnToAngle(double target) {
+  double kP = 0.8;
+  double error = target - inertialSensor.heading();
+
+  while (fabs(error) > 1.0) {
+    error = target - inertialSensor.heading();
+    double motorPower = error * kP;
+
+    leftFront.spin(fwd, motorPower, pct);
+    leftMiddle.spin(fwd, motorPower, pct);
+    leftBack.spin(fwd, motorPower, pct);
+
+    rightFront.spin(fwd, -motorPower, pct);
+    rightMiddle.spin(fwd, -motorPower, pct);
+    rightBack.spin(fwd, -motorPower, pct);
+
+    wait(20, msec);
+  }
+
+  leftFront.stop();
+  leftMiddle.stop();
+  leftBack.stop();
+  rightFront.stop();
+  rightMiddle.stop();
+  rightBack.stop();
 }
