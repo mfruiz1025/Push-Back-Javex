@@ -60,11 +60,11 @@ int main()
 {
     // Crear e inicializar PID
     PID pid;
-    pid.kp = 0.5;
+    pid.kp = 0.05;
 
-    pid.ki = 0.00;
+    pid.ki = 0.0004;
 
-    pid.kd = 1;
+    pid.kd = 0.005;
 
     double target = 300;
 
@@ -96,10 +96,9 @@ int main()
 
         Right.spin(forward, -power, percent);
 
-        Brain.Screen.clearLine(1);                         // Limpia la primera fila de la pantalla
-        Brain.Screen.setCursor(1, 1);                      // Coloca el cursor en la fila 1, columna 1
+        Brain.Screen.clearLine(1);                        // Limpia la primera fila de la pantalla
+        Brain.Screen.setCursor(1, 1);                     // Coloca el cursor en la fila 1, columna 1
         Brain.Screen.print("Distancia: %.2f", distancia); // Imprime el texto y el valor de la variable
-
         wait(20, msec);
     }
 }
