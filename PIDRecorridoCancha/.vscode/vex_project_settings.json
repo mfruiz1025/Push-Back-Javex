@@ -1,0 +1,19 @@
+{
+	"extension": {
+		"version": "0.7.2025041600",
+		"json": 2
+	},
+	"project": {
+		"name": "PIDRecorridoCancha",
+		"description": "",
+		"creationDate": "8/9/2025, 12:24:07",
+		"platform": "V5",
+		"language": "cpp",
+		"slot": 6,
+		"sdkVersion": "V5_20240802_15_00_00",
+		"cpp": {
+			"includePath": [],
+			"printf_float": true
+		}
+	}
+}
