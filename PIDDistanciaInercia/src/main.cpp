@@ -64,7 +64,7 @@ int main()
 
     pid.ki = 0.00;
 
-    pid.kd = 0.3;
+    pid.kd = 1;
 
     double target = 300;
 
