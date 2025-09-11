@@ -57,6 +57,13 @@ double computerPID(PID &pid, double setpoint, double current, double dt)
     return output;
 }
 
+// Función para reiniciar datos del PID y evitar acumulación de errores
+void resetPID(PID &pid)
+{
+    pid.Integral = 0;
+    pid.prevError = 0;
+}
+
 int main()
 {
 
@@ -87,6 +94,8 @@ int main()
     double lastTime = t.time(msec);
 
     double angle;
+    double distancia;
+    bool realizarGiro = false;
 
     while (true)
     {
@@ -96,25 +105,10 @@ int main()
 
         lastTime = currentTime;
 
-        double distancia = SensorDeDistancia.objectDistance(mm);
-
-        double powerDistancia = computerPID(pidDistancia, targetDistancia, distancia, dt);
-        if (powerDistancia > 100)
-            powerDistancia = 100;
-
-        if (powerDistancia < -100)
-            powerDistancia = -100;
-
-        Left.spin(forward, -powerDistancia, percent);
-
-        Right.spin(forward, -powerDistancia, percent);
-
-        Brain.Screen.clearLine(1);                        // Limpia la primera fila de la pantalla
-        Brain.Screen.setCursor(1, 1);                     // Coloca el cursor en la fila 1, columna 1
-        Brain.Screen.print("Distancia: %.2f", distancia); // Imprime el texto y el valor de la variable
-
-        if (distancia >= 300 && distancia <= 310)
+        if (realizarGiro)
         {
+            // Se realiza la fase del giro
+            resetPID(pidInercia);
             do
             {
                 currentTime = t.time(msec);
@@ -124,9 +118,9 @@ int main()
 
                 double powerGiro = computerPID(pidInercia, targetInercia2, angle, dt);
                 if (powerGiro > 100)
-                    powerDistancia = 100;
-                if (powerDistancia < -100)
-                    powerDistancia = -100;
+                    powerGiro = 100;
+                if (powerGiro < -100)
+                    powerGiro = -100;
 
                 Left.spin(forward, powerGiro, percent);
 
@@ -137,6 +131,42 @@ int main()
                 Brain.Screen.print("Angulo: %.2f", angle); // Imprime el texto y el valor de la variable
                 wait(20, msec);
             } while (fabs(angle - targetInercia2) > 2.0);
+
+            // Giro completado, detener motores y reiniciar para el próximo ciclo
+            Left.stop();
+            Right.stop();
+
+            wait(1000, msec); // Pausa
+
+            resetPID(pidDistancia); // Prepara el PID de avance para la próxima vez
+            realizarGiro = false;    // Vuelve a la fase de avance
+        }
+        else
+        {
+            // Se realiza la fase de avance
+            distancia = SensorDeDistancia.objectDistance(mm);
+            Brain.Screen.clearLine(1);
+            Brain.Screen.setCursor(1, 1);
+            Brain.Screen.print("Distancia: %.2f", distancia); // Imprime el texto y el valor de la variable
+            if (distancia >= 300 && distancia <= 310)
+            {
+                realizarGiro = true; // Activa la fase de giro para la siguiente iteración
+                Left.stop();
+                Right.stop();
+            }
+            else
+            {
+                double powerDistancia = computerPID(pidDistancia, targetDistancia, distancia, dt);
+                if (powerDistancia > 100)
+                    powerDistancia = 100;
+
+                if (powerDistancia < -100)
+                    powerDistancia = -100;
+
+                Left.spin(forward, -powerDistancia, percent);
+
+                Right.spin(forward, -powerDistancia, percent);
+            }
         }
         wait(20, msec);
     }
