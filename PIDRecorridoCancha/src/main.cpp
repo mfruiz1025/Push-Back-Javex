@@ -66,7 +66,6 @@ void resetPID(PID &pid)
 
 int main()
 {
-
     imuSensor.calibrate();
 
     while (imuSensor.isCalibrating())
@@ -80,14 +79,14 @@ int main()
 
     // Definir los parametros de cada sensor
     pidDistancia.kp = 0.05;
-    pidDistancia.ki = 0.0005;
+    pidDistancia.ki = 0.0004;
     pidDistancia.kd = 0.005;
     double targetDistancia = 300;
 
-    pidInercia.kp = 0.3;
-    pidInercia.ki = 0.009;
-    pidInercia.kd = 0.035;
-    double targetInercia1 = 90;
+    pidInercia.kp = 0.1;
+    pidInercia.ki = 0.00;
+    pidInercia.kd = 0.0;
+    double targetInercia1 = 0;
     double targetInercia2 = -90;
 
     timer t;
@@ -116,7 +115,7 @@ int main()
                 lastTime = currentTime;
                 angle = imuSensor.angle(degrees);
 
-                double powerGiro = computerPID(pidInercia, targetInercia2, angle, dt);
+                double powerGiro = computerPID(pidInercia, targetInercia1, angle, dt);
                 if (powerGiro > 100)
                     powerGiro = 100;
                 if (powerGiro < -100)
@@ -126,11 +125,15 @@ int main()
 
                 Right.spin(forward, -powerGiro, percent);
 
-                Brain.Screen.clearLine(1);                 // Limpia la primera fila de la pantalla
-                Brain.Screen.setCursor(2, 1);              // Coloca el cursor en la fila 1, columna 1
-                Brain.Screen.print("Angulo: %.2f", angle); // Imprime el texto y el valor de la variable
+                Brain.Screen.clearLine(1);                       // Limpia la primera fila de la pantalla
+                Brain.Screen.setCursor(2, 1);                    // Coloca el cursor en la fila 1, columna 1
+                Brain.Screen.print("Angulo: %.2f", angle);       // Imprime el texto y el valor de la variable
+                Controller1.Screen.clearScreen();                // Limpia la pantalla del control
+                Controller1.Screen.setCursor(2, 1);              // Fila 1, Columna 1
+                Controller1.Screen.print("Angulo: %.2f", angle); // Imprime con 1 decimal
+
                 wait(20, msec);
-            } while (fabs(angle - targetInercia2) > 2.0);
+            } while (fabs(angle - targetInercia1) > 2.0);
 
             // Giro completado, detener motores y reiniciar para el próximo ciclo
             Left.stop();
@@ -139,7 +142,7 @@ int main()
             wait(1000, msec); // Pausa
 
             resetPID(pidDistancia); // Prepara el PID de avance para la próxima vez
-            realizarGiro = false;    // Vuelve a la fase de avance
+            realizarGiro = false;   // Vuelve a la fase de avance
         }
         else
         {
@@ -147,9 +150,14 @@ int main()
             distancia = SensorDeDistancia.objectDistance(mm);
             Brain.Screen.clearLine(1);
             Brain.Screen.setCursor(1, 1);
-            Brain.Screen.print("Distancia: %.2f", distancia); // Imprime el texto y el valor de la variable
+            Brain.Screen.print("Distancia: %.2f", distancia);     // Imprime el texto y el valor de la variable
+            Controller1.Screen.clearScreen();                     // Limpia la pantalla del control
+            Controller1.Screen.setCursor(1, 1);                   // Fila 1, Columna 1
+            Controller1.Screen.print("Dist: %.2f mm", distancia); //
             if (distancia >= 300 && distancia <= 310)
             {
+                angle = imuSensor.angle(degrees);
+                targetInercia1 = angle + 90;
                 realizarGiro = true; // Activa la fase de giro para la siguiente iteración
                 Left.stop();
                 Right.stop();
