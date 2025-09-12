@@ -34,6 +34,8 @@ void pre_auton(void) {
 
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
+  inertialSensor.calibrate();
+  wait(100,msec);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -48,16 +50,23 @@ void pre_auton(void) {
 
 void autonomous(void) {
   
-  // ..........................................................................
+  // .........................................................................
+rightFront.spin(fwd, 50, pct);
+  wait(2, seconds);
+  rightFront.stop();
 
-inertialSensor.calibrate();
+  rightMiddle.spin(fwd, 50, pct);
+  wait(2, seconds);
+  leftMiddle.stop();
 
-wait(100,msec);
+  rightMiddle1.spin(fwd, 50, pct);
+  wait(2, seconds);
+  leftMiddle1.stop();
 
-driveStraightIMU(50,3000);
-turnToAngle(90);
-driveStraightIMU(50,2000);
-turnToAngle(180);
+  rightBack.spin(fwd, 50, pct);
+  wait(2, seconds);
+  leftBack.stop();
+
   // ..........................................................................
 }
 
