@@ -1,3 +1,5 @@
+#include "vex.h"
+#include "robot-config.h"
 #include "my-timer.h"
 
 MyTimer::MyTimer(){

@@ -10,23 +10,23 @@ controller Controller1 = controller(primary);
 
 // --- Configuración de Puertos (Exacta de AutonomoGrandeRojoBaseNormal) ---
 
-// Motores del lado izquierdo
-motor MotorL1(PORT14, ratio18_1, true);
-motor MotorL2(PORT18, ratio18_1, false);
-motor MotorL3(PORT19, ratio18_1, false);
-motor MotorL4(PORT20, ratio18_1, true);
+// Motores del lado izquierdo (alinear inversión con patrón del lado derecho)
+motor MotorL1(PORT10, ratio18_1, false);
+motor MotorL2(PORT9,  ratio18_1, true);
+motor MotorL3(PORT8,  ratio18_1, true);
+motor MotorL4(PORT6,  ratio18_1, false);
 motor_group Left(MotorL1, MotorL2, MotorL3, MotorL4);
 
 // Motores del lado derecho
-motor MotorR1(PORT7, ratio18_1, false);
-motor MotorR2(PORT8, ratio18_1, true);
-motor MotorR3(PORT9, ratio18_1, true);
-motor MotorR4(PORT10, ratio18_1, false);
+motor MotorR1(PORT1, ratio18_1, false);
+motor MotorR2(PORT2, ratio18_1, true);
+motor MotorR3(PORT3, ratio18_1, true);
+motor MotorR4(PORT4, ratio18_1, false);
 motor_group Right(MotorR1, MotorR2, MotorR3, MotorR4);
 
-// Sensores (¡DEBES ASIGNAR PUERTOS REALES!)
-inertial IMU = inertial(PORT11); // Ejemplo: Asignado al puerto 11
-gps GPS_Sensor = gps(PORT15, 0, 0, distanceUnits::mm, 180); // Ejemplo: Asignado al puerto 15
+// Sensores
+inertial IMU = inertial(PORT11);
+gps GPS_Sensor = gps(PORT15, 0, 0, distanceUnits::mm, 180);
 
 // Mecanismos
 motor Rec1 = motor(PORT13, ratio18_1, true);

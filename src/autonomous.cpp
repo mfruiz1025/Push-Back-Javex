@@ -67,15 +67,14 @@ void auton_skill(void){
 void auton_gps_precision(void) {
   auton_init();
   
-  // Step 1: Begin with 1 preload ring in gripper, take ring in front and score both
   Controller1.Screen.setCursor(1, 1);
-  Controller1.Screen.print("Step 1: Collection");
+  Controller1.Screen.print("Moviendo en línea recta hacia la mitad de la pista (1800 mm)");
   
-  // Precise movement forward 320mm
+  // Precise movement forward to mid-field (1800 mm)
 
   // gpsPIDMove(x_target, y_target, direction, max_power, mode)
-  my_gps.gpsPIDMove(my_gps.getGpsX(), my_gps.getGpsY() + 320, 1, 50, "PID");
-  
+  my_gps.gpsPIDMove(my_gps.getGpsX() + 1800, my_gps.getGpsY(), 1, 50, "PID");
+
   Pinza.close();
   wait(200, msec);
   

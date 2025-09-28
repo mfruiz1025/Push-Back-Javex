@@ -24,11 +24,40 @@ competition Competition;
 
 int auton_strategy = 0;
 
+// ===================== Control mappings (previous project style) =====================
+int controlMode = 0;           // 0: twoJoysticksControl (arcade mix), 1: joystickNewControl (tank)
+bool pistonAbierto = false;    // Toggle for Pinza
+bool piston2Abierto = false;   // Toggle for brazo
+
+void switchControlMode() {
+  controlMode = (controlMode + 1) % 2;
+  Brain.Screen.clearScreen();
+  Brain.Screen.setCursor(1, 1);
+  Brain.Screen.print("Modo de control: %d", controlMode);
+}
+
+void joystickNewControl(){
+  // Tank: left = Axis3, right = Axis2
+  int leftSpeed = Controller1.Axis3.position(vex::percentUnits::pct);
+  int rightSpeed = Controller1.Axis2.position(vex::percentUnits::pct);
+  Left.spin(vex::directionType::fwd, leftSpeed, vex::velocityUnits::pct);
+  Right.spin(vex::directionType::fwd, rightSpeed, vex::velocityUnits::pct);
+}
+
+void twoJoysticksControl() {
+  // Arcade: forward on Axis3, turn on Axis1
+  int leftSpeed = Controller1.Axis3.position(vex::percentUnits::pct) + Controller1.Axis1.position(vex::percentUnits::pct);
+  int rightSpeed = Controller1.Axis3.position(vex::percentUnits::pct) - Controller1.Axis1.position(vex::percentUnits::pct);
+  Left.spin(vex::directionType::fwd, leftSpeed, vex::velocityUnits::pct);
+  Right.spin(vex::directionType::fwd, rightSpeed, vex::velocityUnits::pct);
+}
+
 void pre_auton(void) {
   vexcodeInit();
 }
 
 void autonomous(void) {
+  // SELECCIÓN DE ESTRATEGIA AUTÓNOMA MEDIANTE EL BOTÓN "RIGHT" DEL CONTROLADOR
   switch(auton_strategy) {
     case 0:
       auton_gps_precision(); // GPS-based precise autonomous sequence
@@ -48,99 +77,100 @@ void autonomous(void) {
     }
 }
 
+// (Se comenta la versión previa del controlador para referencia, ver bloque al final)
+
+// ==================== PREVIOUS PROJECT STYLE CONTROLS ====================
+// Implementación solicitada de usercontrol (con selección de autónomo + telemetría)
 void usercontrol(void) {
-  // User control code here, inside the loop
-  bool is_base_locked = false;
-  
-  while (1) {
-    // Controller Input
-    defineController();
-    
-    // Manual joystick control
-    // Base Movement Control with deadzone
-    if (std::abs(A3) < JOYSTICK_DEADZONE) A3 = 0;
-    if (std::abs(A1) < JOYSTICK_DEADZONE) A1 = 0;
-    
-    if (std::abs(A3 + A1) > MOVEMENT_LOWER_LIMIT)
-      moveLeft(A3 + A1);
-    else
-      unlockLeft();
-      
-    if (std::abs(A3 - A1) > MOVEMENT_LOWER_LIMIT)
-      moveRight(A3 - A1);
-    else
-      unlockRight();
-    
-    wait(20, msec); // Small delay for system stability
-  }
+  while (true) {
+    // Cambiar el modo de control con el botón Y (y esperar a soltarlo)
+    if (Controller1.ButtonY.pressing()) {
+      switchControlMode();
+      while (Controller1.ButtonY.pressing()) { wait(10, msec); }
+    }
 
-  // Base lock
-  if(B && !last_B) {
-    is_base_locked = !is_base_locked;
-    if(is_base_locked) {
-      lockBase();
+    // Control del robot basado en el modo seleccionado
+    if (controlMode == 0) {
+      twoJoysticksControl();
+    } else if (controlMode == 1) {
+      joystickNewControl();
     }
-    else {
-      unlockBase();
-    }
-  }
 
-    if(DOWN && !last_DOWN) {
-      runAuton();
-      // tuning_robot();
+    // Control del motor recolector y rampa usando L1 y L2
+    if (Controller1.ButtonL1.pressing()) {
+      Recolector.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
+      Rampa.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
+    } else if (Controller1.ButtonL2.pressing()) {
+      Recolector.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+      Rampa.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+    } else {
+      Recolector.stop(vex::brakeType::hold);
+      Rampa.stop(vex::brakeType::hold);
     }
-    // Set auton strategy
-    if(RIGHT && !last_RIGHT) {
+
+    // Lugar reservado para garra (X/A) si aplica
+    if (Controller1.ButtonX.pressing()) {
+      // Garra.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
+    } else if (Controller1.ButtonA.pressing()) {
+      // Garra.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+    } else {
+      // Garra.stop(vex::brakeType::hold);
+    }
+
+    // Toggle Pinza con R2 (espera a soltar)
+    if (Controller1.ButtonR2.pressing()) {
+      while (Controller1.ButtonR2.pressing()) { wait(10, msec); }
+      pistonAbierto = !pistonAbierto;
+      if (pistonAbierto) { Pinza.open(); } else { Pinza.close(); }
+    }
+
+    // Recolector neumático (mantener R1 para abrir)
+    if (Controller1.ButtonR1.pressing()) { RecolectorNeumatica.open(); } else { RecolectorNeumatica.close(); }
+
+    // Toggle brazo con B (espera a soltar)
+    if (Controller1.ButtonB.pressing()) {
+      while (Controller1.ButtonB.pressing()) { wait(10, msec); }
+      piston2Abierto = !piston2Abierto;
+      if (piston2Abierto) { brazo.open(); } else { brazo.close(); }
+    }
+
+    // Pruebas de hardware: forzar movimiento de cada lado
+    if (Controller1.ButtonUp.pressing()) { Left.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct); }
+    if (Controller1.ButtonLeft.pressing()) { Right.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct); }
+
+    // Selección de estrategia autónoma (RIGHT) con eco en pantalla
+    if (Controller1.ButtonRight.pressing()) {
       auton_strategy++;
-      auton_strategy = auton_strategy % 4;
-      switch(auton_strategy) {
-        case 0:
-          Controller1.Screen.setCursor(5, 1);
-          Controller1.Screen.print("%10s", "GPS Precision");
-          break;
-        case 1:
-          Controller1.Screen.setCursor(5, 1);
-          Controller1.Screen.print("%10s", "auto two");
-          break;
-        case 2:
-          Controller1.Screen.setCursor(5, 1);
-          Controller1.Screen.print("%10s", "auto three");
-          break;
-        case 3:
-          Controller1.Screen.setCursor(5, 1);
-          Controller1.Screen.print("%10s", "auto four");
-          break;
-        case 4:
-          Controller1.Screen.setCursor(5, 1);
-          Controller1.Screen.print("%10s", "yousb");
-          break;
+      auton_strategy = auton_strategy % 4; // mantener 0..3
+      switch (auton_strategy) {
+        case 0: Controller1.Screen.setCursor(5, 1); Controller1.Screen.print("%10s", "GPS Precision"); break;
+        case 1: Controller1.Screen.setCursor(5, 1); Controller1.Screen.print("%10s", "auto two"); break;
+        case 2: Controller1.Screen.setCursor(5, 1); Controller1.Screen.print("%10s", "auto three"); break;
+        case 3: Controller1.Screen.setCursor(5, 1); Controller1.Screen.print("%10s", "auto four"); break;
+        case 4: Controller1.Screen.setCursor(5, 1); Controller1.Screen.print("%10s", "yousb"); break;
       }
+      while (Controller1.ButtonRight.pressing()) { wait(10, msec); }
     }
-    // Print on brain
-    Brain.Screen.setCursor(1, 1);
-    Brain.Screen.print("Heading: %3.2f", my_sensors.getBaseHeading());
-    Brain.Screen.setCursor(2, 1);
-    Brain.Screen.print("Forward Position: %4.1f", my_sensors.getBaseForwardPos());
+
+    // Disparo manual de autónomo (DOWN)
+    if (Controller1.ButtonDown.pressing()) { runAuton(); while (Controller1.ButtonDown.pressing()) { wait(10, msec); } }
+
+    // Telemetría al Brain
+    Brain.Screen.setCursor(1, 1); Brain.Screen.print("Heading: %3.2f   ", my_sensors.getBaseHeading());
+    Brain.Screen.setCursor(2, 1); Brain.Screen.print("Forward Position: %4.1f   ", my_sensors.getBaseForwardPos());
     Brain.Screen.setCursor(3, 1);
-    switch(auton_strategy) {
-      case 0:
-        Brain.Screen.print("%10s", "GPS Precision");
-        break;
-      case 1:
-        Brain.Screen.print("%10s", "auto two");
-        break;
-      case 2:
-        Brain.Screen.print("%10s", "auto three");
-        break;
-      case 3:
-        Brain.Screen.print("%10s", "auto four");
-        break;
-      case 4:
-        Brain.Screen.print("%10s", "yousb");
-        break;
+    switch (auton_strategy) {
+      case 0: Brain.Screen.print("%10s", "GPS Precision"); break;
+      case 1: Brain.Screen.print("%10s", "auto two"); break;
+      case 2: Brain.Screen.print("%10s", "auto three"); break;
+      case 3: Brain.Screen.print("%10s", "auto four"); break;
+      case 4: Brain.Screen.print("%10s", "yousb"); break;
     }
-    this_thread::sleep_for(5);
+
+    // Espera para evitar saturar el CPU
+    wait(20, msec);
   }
+}
 
 int main() {
   thread AutonSensors(autonSensors);
