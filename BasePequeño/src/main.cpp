@@ -24,7 +24,7 @@ controller Controller1;
 //  --------------------
 
 // Motores del lado izquierdo (puertos 1-4)
-motor LeftMotor1(PORT6,true);
+motor LeftMotor1(PORT6, true);
 motor LeftMotor2(PORT8, false);
 motor LeftMotor3(PORT9, true);
 motor LeftMotor4(PORT10, false);
@@ -37,6 +37,14 @@ motor RightMotor3(PORT3, true);
 motor RightMotor4(PORT4, false);
 motor_group Right(RightMotor1, RightMotor2, RightMotor3, RightMotor4);
 
+// Motores Recolección
+motor Recolección1(PORT12, false);
+motor Recolección2(PORT11, false);
+motor_group Recoleccion(Recolección1, Recolección2);
+
+// Control Recolección
+bool ActivacionRecoleccion = false;
+bool ActivacionRecoleccionReversa = false;
 
 // Modo de control
 int controlMode = 0;
@@ -118,6 +126,38 @@ int main()
                 // Esperar a que se suelte el botón A
                 task::sleep(10);
             }
+        }
+
+        if (Controller1.ButtonB.pressing())
+        {
+            ActivacionRecoleccion = !ActivacionRecoleccion;
+            ActivacionRecoleccionReversa = false;           
+            while (Controller1.ButtonB.pressing())
+            {
+                task::sleep(10);
+            }
+        }
+
+        if (Controller1.ButtonY.pressing())
+        {
+            ActivacionRecoleccionReversa = !ActivacionRecoleccionReversa;
+            ActivacionRecoleccion = false;
+            while (Controller1.ButtonY.pressing())
+            {
+                task::sleep(10);
+            }
+        }
+        if (ActivacionRecoleccion == true)
+        {
+            Recoleccion.spin(forward, 100, percent);
+        }
+        else if (ActivacionRecoleccionReversa == true)
+        {
+            Recoleccion.spin(reverse, 100, percent);
+        }
+        else
+        {
+            Recoleccion.stop();
         }
 
         // Control del robot basado en el modo seleccionado
