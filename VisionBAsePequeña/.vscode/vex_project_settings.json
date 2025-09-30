@@ -4,12 +4,12 @@
 		"json": 2
 	},
 	"project": {
-		"name": "VisionBasePequena",
+		"name": "VisionBAsePequeña",
 		"description": "",
-		"creationDate": "1/8/2025, 15:06:40",
+		"creationDate": "30/9/2025, 10:22:45",
 		"platform": "V5",
 		"language": "cpp",
-		"slot": 8,
+		"slot": 6,
 		"sdkVersion": "V5_20240802_15_00_00",
 		"cpp": {
 			"includePath": [],

@@ -14,7 +14,7 @@ brain Brain;
 controller Controller1;
 
 // Motores del lado izquierdo (puertos 1-4)
-motor LeftMotor1(PORT7, true);
+motor LeftMotor1(PORT6, true);
 motor LeftMotor2(PORT8, false);
 motor LeftMotor3(PORT9, true);
 motor LeftMotor4(PORT10, false);
