@@ -13,33 +13,32 @@ vex::competition Competition;
 vex::controller Controller = vex::controller(vex::controllerType::primary);
 
 // Declaración del Brain
-vex::brain Brain; 
+vex::brain Brain;
 
 // Declaración del GPS: Puerto 20, Offset X=750mm, Y=400mm (ejemplo).
-vex::gps GPS = vex::gps(vex::PORT20, 750.0, 400.0, vex::distanceUnits::mm, 0.0, vex::turnType::right);
+vex::gps GPS = vex::gps(vex::PORT15, 750.0, 400.0, vex::distanceUnits::mm, 0.0, vex::turnType::right);
 
 // Declaraciones de motores
-vex::motor LeftMotor1 = vex::motor(vex::PORT1, vex::gearSetting::ratio18_1, true);
-vex::motor LeftMotor2 = vex::motor(vex::PORT2, vex::gearSetting::ratio18_1, false);
-vex::motor LeftMotor3 = vex::motor(vex::PORT3, vex::gearSetting::ratio18_1, true);
-vex::motor LeftMotor4 = vex::motor(vex::PORT4, vex::gearSetting::ratio18_1, false);
+vex::motor LeftMotor1 = vex::motor(vex::PORT8, vex::gearSetting::ratio18_1, false);
+vex::motor LeftMotor2 = vex::motor(vex::PORT9, vex::gearSetting::ratio18_1, true);
+vex::motor LeftMotor3 = vex::motor(vex::PORT10, vex::gearSetting::ratio18_1, false);
 
-vex::motor RightMotor1 = vex::motor(vex::PORT6, vex::gearSetting::ratio18_1, true);
-vex::motor RightMotor2 = vex::motor(vex::PORT8, vex::gearSetting::ratio18_1, false);
-vex::motor RightMotor3 = vex::motor(vex::PORT9, vex::gearSetting::ratio18_1, true);
-vex::motor RightMotor4 = vex::motor(vex::PORT10, vex::gearSetting::ratio18_1, false);
+vex::motor RightMotor1 = vex::motor(vex::PORT1, vex::gearSetting::ratio18_1, true);
+vex::motor RightMotor2 = vex::motor(vex::PORT2, vex::gearSetting::ratio18_1, false);
+vex::motor RightMotor3 = vex::motor(vex::PORT3, vex::gearSetting::ratio18_1, true);
+
+vex::motor recoleccion1 = vex::motor(vex::PORT11, vex::gearSetting::ratio18_1, true);
+vex::motor recoleccion2 = vex::motor(vex::PORT12, vex::gearSetting::ratio18_1, false);
+
 
 // Grupos de motores para la base
-vex::motor_group LeftDrive = vex::motor_group(LeftMotor1, LeftMotor2, LeftMotor3, LeftMotor4);
-vex::motor_group RightDrive = vex::motor_group(RightMotor1, RightMotor2, RightMotor3, RightMotor4);
-
-// CONSTANTES DE NAVEGACIÓN
-constexpr double IN_TO_MM = 25.4;
-constexpr double TARGET_TOLERANCE_MM = 25.0; // Tolerancia de error de 25 mm (~1 pulgada)
+vex::motor_group LeftDrive = vex::motor_group(LeftMotor1, LeftMotor2, LeftMotor3);
+vex::motor_group RightDrive = vex::motor_group(RightMotor1, RightMotor2, RightMotor3);
+vex::motor_group Recoleccion = vex::motor_group(recoleccion1, recoleccion2);
 
 // Constantes de control Proporcional (P). AJUSTAR PARA TU ROBOT.
-constexpr double HEADING_KP = 0.6;
-constexpr double DRIVE_KP = 1.2;
+constexpr double HEADING_KP = 0.25;
+constexpr double DRIVE_KP = 0.8;
 
 // --- ESTRUCTURA PARA PUNTOS DE REFERENCIA ---
 struct Waypoint {
@@ -63,6 +62,15 @@ void print_gps_data() {
     Brain.Screen.print("Y: %.2f in", GPS.yPosition(vex::distanceUnits::in));
     Brain.Screen.setCursor(4, 1);
     Brain.Screen.print("H: %.2f deg", GPS.heading());
+
+    // Mando
+    Controller.Screen.clearScreen();
+    Controller.Screen.setCursor(1, 1);
+    Controller.Screen.print("X: %.1f", GPS.xPosition(vex::distanceUnits::in));
+    Controller.Screen.setCursor(2, 1);
+    Controller.Screen.print("Y: %.1f", GPS.yPosition(vex::distanceUnits::in));
+    Controller.Screen.setCursor(3, 1);
+    Controller.Screen.print("H: %.1f", GPS.heading());
 }
 
 // Detiene ambos grupos de motores usando el frenado de tipo 'brake'
@@ -71,86 +79,104 @@ void stop_drivetrain() {
     RightDrive.stop(vex::brakeType::brake);
 }
 
-// Función para navegar a una coordenada (X, Y) específica mezclando avance y corrección de rumbo
-void driveToPoint(double targetX, double targetY, double driveSpeed = 50.0) {
-    double targetX_mm = targetX * IN_TO_MM;
-    double targetY_mm = targetY * IN_TO_MM;
-
+void driveToPoint(double targetX_mm, double targetY_mm, double driveSpeed = 30.0, double finalHeading = -1) {
+    // Mostrar destino en pantalla
     Brain.Screen.clearScreen();
     Brain.Screen.setCursor(1, 1);
-    Brain.Screen.print("Movimiento a: (%.1f, %.1f) in", targetX, targetY);
-    printf("--- Movimiento a: (%.1f, %.1f) in ---\n", targetX, targetY);
+    Brain.Screen.print("Moviendo a: %.0f, %.0f mm", targetX_mm, targetY_mm);
+    printf("-> Moviendo a: %.0f, %.0f mm\n", targetX_mm, targetY_mm);
 
+    // Variables de posición y control
     double currentX, currentY;
-    double distance, requiredHeading;
-    double errorHeading;
+    double distance, requiredHeading, errorHeading;
     double driveVelocity, turnVelocity;
+    double lastDistance = 99999;
+
+    int stuckCounter = 0;
 
     do {
-        // Obtener las coordenadas en X y Y con respecto al campo
+        // Posición actual del GPS
         currentX = GPS.xPosition(vex::distanceUnits::mm);
         currentY = GPS.yPosition(vex::distanceUnits::mm);
 
-        // Calcular la distancia al objetivo y el rumbo requerido
+        // Diferencias
         double deltaX = targetX_mm - currentX;
         double deltaY = targetY_mm - currentY;
+
+        // Distancia al objetivo
         distance = std::sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        // Calcular el rumbo requerido
+        // Cálculo de rumbo deseado
         requiredHeading = std::atan2(deltaY, deltaX) * 180.0 / M_PI;
         requiredHeading = 90.0 - requiredHeading;
         if (requiredHeading < 0) requiredHeading += 360.0;
         if (requiredHeading > 360) requiredHeading -= 360.0;
-        
-        // Calcular el error de rumbo y aplicar el control de rumbo
+
+        // Error de rumbo (diferencia entre rumbo actual y deseado)
         errorHeading = requiredHeading - GPS.heading();
-        while (errorHeading > 180)
-            errorHeading -= 360;
-        while (errorHeading < -180)
-            errorHeading += 360;
+        while (errorHeading > 180) errorHeading -= 360;
+        while (errorHeading < -180) errorHeading += 360;
 
-        // "Control Proporcional" para velocidad de avance y corrección de rumbo
+        // Control proporcional para avanzar
         driveVelocity = std::min(driveSpeed, distance * DRIVE_KP);
-        driveVelocity = std::max(10.0, driveVelocity);
+        driveVelocity = std::max(15.0, driveVelocity); // velocidad mínima segura
 
-        // Control Proporcional para rumbo
-        turnVelocity = errorHeading * HEADING_KP;
+        // Control proporcional para girar (limitar el giro para evitar movimientos bruscos)
+        turnVelocity = std::max(-20.0, std::min(errorHeading * HEADING_KP, 20.0));
 
-        // Calcular la velocidad de avance y corrección de rumbo
-        double leftVelocity = driveVelocity - turnVelocity;
-        double rightVelocity = driveVelocity + turnVelocity;
-        
-        // Limitar la velocidad de avance a 100% para evitar que el robot se mueva demasiado rápido
-        double max_abs_vel = std::max(std::abs(leftVelocity), std::abs(rightVelocity));
-        if (max_abs_vel > 100.0) {
-            leftVelocity = (leftVelocity / max_abs_vel) * 100.0;
-            rightVelocity = (rightVelocity / max_abs_vel) * 100.0;
+        // Ajuste progresivo si está muy cerca
+        if (distance < 150) {
+            driveVelocity *= 0.6;  // desacelera suavemente al llegar
         }
 
+        // Cálculo de velocidades para motores izquierdo y derecho
+        double leftVelocity = driveVelocity - turnVelocity;
+        double rightVelocity = driveVelocity + turnVelocity;
 
-        LeftDrive.setVelocity(leftVelocity, vex::velocityUnits::pct);
-        RightDrive.setVelocity(rightVelocity, vex::velocityUnits::pct);
+        // Limita velocidad total a 100%
+        double maxVel = std::max(std::abs(leftVelocity), std::abs(rightVelocity));
+        if (maxVel > 100.0) {
+            leftVelocity = (leftVelocity / maxVel) * 100.0;
+            rightVelocity = (rightVelocity / maxVel) * 100.0;
+        }
 
+        // Aplicar velocidades
+        LeftDrive.setVelocity(leftVelocity, vex::percentUnits::pct);
+        RightDrive.setVelocity(rightVelocity, vex::percentUnits::pct);
         LeftDrive.spin(vex::directionType::fwd);
         RightDrive.spin(vex::directionType::fwd);
 
+        // Pantalla de depuración
         print_gps_data();
         Brain.Screen.setCursor(5, 1);
-        Brain.Screen.print("Dist: %.2f in", distance / IN_TO_MM);
+        Brain.Screen.print("Dist: %.0f mm", distance);
         Brain.Screen.setCursor(6, 1);
-        Brain.Screen.print("ReqH: %.2f deg", requiredHeading);
-        printf("Dist: %.2f in, ReqH: %.2f deg\n", distance / IN_TO_MM, requiredHeading);
+        Brain.Screen.print("ReqH: %.1f deg", requiredHeading);
+
+        // Verificación de progreso (prevención de estancamiento)
+        if (std::abs(distance - lastDistance) < 2.0) {
+            stuckCounter++;
+        } else {
+            stuckCounter = 0;
+        }
+        lastDistance = distance;
 
         vex::task::sleep(20);
 
-    } while (distance > TARGET_TOLERANCE_MM);
+        // Sale si se acerca lo suficiente o se queda estancado
+    } while (distance > 20.0 && stuckCounter < 75);  // 20 mm de tolerancia
 
-    stop_drivetrain();
+    stop_drivetrain();  // Frenado suave
+
+    // Mensaje de éxito
     Brain.Screen.setCursor(7, 1);
     Brain.Screen.print("Punto alcanzado!");
-    printf("--- Punto alcanzado! ---\n");
+    printf("-> Punto alcanzado!\n");
+
     vex::task::sleep(500);
+
 }
+
 
 // Inicializa el gps y espera su calibración
 bool initialize_gps() {
@@ -193,64 +219,64 @@ bool initialize_gps() {
 
 // AUTONOMO
 void autonomous(void) {
-    // Inicializa el gps y mantiene la base detenida
+    // Inicializa el GPS y detiene la base si falla
     if (!initialize_gps()) {
         stop_drivetrain();
         return;
     }
 
-    // Coordenadas iniciales del robot (en pulgadas) y rumbo (en grados)
-    double startX = -35.57;
-    double startY = -41.73;
-    double startHeading = 162.01;
+    // Lado del cuadrado (5 pies a mm)
+    double side = 5.0 * 5.0 * 304.8; // 609.6 mm
 
-    // Lados del cuadrado de 24 pulgadas
-    double side = 24.0;
-    
-    // SECUENCIA DE MOVIMIENTOS PARA FORMAR UN CUADRADO
-    
-    double h_rad; // Rumbo en radianes
+    // Obtener posición y rumbo inicial desde el GPS
+    double startX = GPS.xPosition(vex::distanceUnits::mm);
+    double startY = GPS.yPosition(vex::distanceUnits::mm);
+    double startHeading = GPS.heading();  // en grados
 
-    // Esquina 1 (mueve hacia adelante 24 pulgadas)
+    // Mostrar en pantalla
+    Brain.Screen.setCursor(1, 1);
+    Brain.Screen.print("Inicio: X=%.1f Y=%.1f H=%.1f", startX, startY, startHeading);
+
+    // Calcular posiciones de cada esquina del cuadrado
+    double h_rad;
+
+    // Esquina 1
     h_rad = startHeading * M_PI / 180.0;
     double corner1X = startX + side * std::sin(h_rad);
     double corner1Y = startY + side * std::cos(h_rad);
 
-    // Esquina 2 (gira 90 grados y mueve 24 pulgadas)
-    h_rad = (startHeading + 90.0);
-    if(h_rad > 360) h_rad -= 360;
-    h_rad = h_rad * M_PI / 180.0;
+    // Esquina 2 (gira 90 grados)
+    h_rad = (startHeading + 90.0) * M_PI / 180.0;
     double corner2X = corner1X + side * std::sin(h_rad);
     double corner2Y = corner1Y + side * std::cos(h_rad);
 
-    // Esquina 3 (gira 90 grados y mueve 24 pulgadas)
-    h_rad = (startHeading + 180.0);
-    if(h_rad > 360) h_rad -= 360;
-    h_rad = h_rad * M_PI / 180.0;
+    // Esquina 3 (gira 180 grados)
+    h_rad = (startHeading + 180.0) * M_PI / 180.0;
     double corner3X = corner2X + side * std::sin(h_rad);
     double corner3Y = corner2Y + side * std::cos(h_rad);
 
-    
-    Brain.Screen.setCursor(8, 1);
-    Brain.Screen.print("-> Moviendo al Lado 1 del cuadrado...");
-    driveToPoint(corner1X, corner1Y);
+    // Moverse a las esquinas
+    Brain.Screen.setCursor(3, 1);
+    Brain.Screen.print("-> Lado 1");
+    driveToPoint(corner1X, corner1Y, 40.0);
 
-    Brain.Screen.setCursor(8, 1);
-    Brain.Screen.print("-> Moviendo al Lado 2 del cuadrado...");
-    driveToPoint(corner2X, corner2Y);
+    Brain.Screen.setCursor(4, 1);
+    Brain.Screen.print("-> Lado 2");
+    driveToPoint(corner2X, corner2Y, 40.0);
 
-    Brain.Screen.setCursor(8, 1);
-    Brain.Screen.print("-> Moviendo al Lado 3 del cuadrado...");
-    driveToPoint(corner3X, corner3Y);
+    Brain.Screen.setCursor(5, 1);
+    Brain.Screen.print("-> Lado 3");
+    driveToPoint(corner3X, corner3Y, 40.0);
 
-    Brain.Screen.setCursor(8, 1);
-    Brain.Screen.print("-> Regresando al inicio...");
-    driveToPoint(startX, startY);
-    
+    Brain.Screen.setCursor(6, 1);
+    Brain.Screen.print("-> Regresando...");
+    driveToPoint(startX, startY, 40.0);
+
     stop_drivetrain();
-    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(8, 1);
     Brain.Screen.print("Ruta autonomo completada!");
 }
+
 
 // Función para el modo Driver en movimmiento de tank
 void usercontrol(void) {
