@@ -14,16 +14,18 @@ brain Brain;
 controller Controller1;
 
 // Motores del lado izquierdo (puertos 1-4)
-motor LeftMotor1(PORT8, false);
-motor LeftMotor2(PORT9, true);
-motor LeftMotor3(PORT10, false);
+motor LeftMotor1(PORT1, true);
+motor LeftMotor2(PORT2, false);
+motor LeftMotor3(PORT3, true);
+motor LeftMotor4(PORT4, false);
 motor_group Left(LeftMotor1, LeftMotor2, LeftMotor3);
 
 // Motores del lado derecho (puertos 7-10)
-motor RightMotor1(PORT1, true);
-motor RightMotor2(PORT2, false);
-motor RightMotor3(PORT3, true);
-motor_group Right(RightMotor1, RightMotor2, RightMotor3);
+motor RightMotor1(PORT7, true);
+motor RightMotor2(PORT8, false);
+motor RightMotor3(PORT9, true);
+motor RightMotor4(PORT10, false);
+motor_group Right(RightMotor2, RightMotor3, RightMotor4);
 
 // Sensor de Inercia
 inertial imuSensor(PORT14);
@@ -62,123 +64,608 @@ void resetPID(PID &pid)
 
 int main()
 {
-    double diametroRueda_cm = 10.16;
-    double circunferenciaRueda_cm = diametroRueda_cm * 3.14159;
+    imuSensor.calibrate();
 
-    double distanciaAvanzar_cm = 50;
+    while (imuSensor.isCalibrating())
+    {
+        wait(20, msec);
+    }
 
-    double gradosMotorObjetivo = (distanciaAvanzar_cm / circunferenciaRueda_cm) * 360;
+    double distanciaAvanzar1_cm = 102;
+    double gradosMotorObjetivo1 = (distanciaAvanzar1_cm * 3.496);
+
+    double distanciaAvanzar2_cm = 62;
+    double gradosMotorObjetivo2 = (distanciaAvanzar2_cm * 3.496);
+
+    double distanciaAvanzar3_cm = 85;
+    double gradosMotorObjetivo3 = (distanciaAvanzar3_cm * 3.496);
+
+    double distanciaAvanzar4_cm = 125;
+    double gradosMotorObjetivo4 = (distanciaAvanzar4_cm * 3.496);
+
+    PID pidRecto;
+    pidRecto.kd = 0;
+    pidRecto.ki = 0;
+    pidRecto.kp = 0.1;
 
     PID pidGiro;
-    pidGiro.kd = 0;
-    pidGiro.ki = 0;
-    pidGiro.kp = 0.1;
+    pidGiro.kd = 0.01;
+    pidGiro.ki = 0.018;
+    pidGiro.kp = 0.2;
 
-    double velocidadBase = 50.0;
-    double setpointAngulo = 0.0;
+    PID pidDistancia;
+    pidDistancia.kp = 0.2;
+    pidDistancia.ki = 0.0;
+    pidDistancia.kd = 0.003;
+
+    double setpointAngulo = 0;
     double dt = 0.02;
+    timer t;
+    double lastTime = t.time(msec);
+    double targetAngulo1 = 90;
 
     Left.resetPosition();
     Right.resetPosition();
 
-    Left.spinFor(forward, gradosMotorObjetivo, degrees, 50, velocityUnits::pct, false);
-    Right.spinFor(forward, gradosMotorObjetivo, degrees, 50, velocityUnits::pct, false);
-
     // Bucle para corrección mientras estén girando
-    while ((LeftMotor1.position(degrees) + RightMotor1.position(degrees)) / 2 < gradosMotorObjetivo)
+    while (fabs(gradosMotorObjetivo1 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
     {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo1, posicionPromedioActual, dt);
+
+        // --- 2. Calcular la corrección con el PID de Giro ---
         double anguloActual = imuSensor.rotation();
-        double correccion = computerPID(pidGiro, setpointAngulo, anguloActual, dt);
+        double correccionGiro = computerPID(pidRecto, setpointAngulo, anguloActual, dt);
 
-        // Limitar entre -100 y 100
-        if (correccion > 100)
-            correccion = 100;
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
 
-        if (correccion < -100)
-            correccion = -100;
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase - correccionGiro;
+        double rightPower = potenciaBase + correccionGiro;
 
-        double leftPower = velocidadBase - correccion;
-        double rightPower = velocidadBase + correccion;
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
 
-        // Aplicar nuevas velocidades
-        Left.setVelocity(leftPower, percent);
-        Right.setVelocity(rightPower, percent);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
 
-        wait(dt, seconds);
+        wait(20, msec);
     }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidRecto);
+    Brain.Screen.clearScreen();
+
+    while (fabs(targetAngulo1 - imuSensor.rotation(degrees)) > 2.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo1, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+
+    while (fabs(gradosMotorObjetivo2 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo2, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidDistancia);
+
+    double targetAngulo2 = 45;
+
+    while (fabs(targetAngulo2 - imuSensor.rotation(degrees)) > 4.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo2, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+
+    while (fabs(gradosMotorObjetivo3 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo3, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidDistancia);
+    double targetAngulo3 = -45;
+
+    while (fabs(targetAngulo3 - imuSensor.rotation(degrees)) > 2.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo3, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+
+    while (fabs(gradosMotorObjetivo3 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo3, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidDistancia);
+
+    double targetAngulo4 = -90;
+
+    while (fabs(targetAngulo4 - imuSensor.rotation(degrees)) > 2.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo4, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+
+    while (fabs(gradosMotorObjetivo4 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo4, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidDistancia);
+
+    double targetAngulo5 = -135;
+
+    while (abs(targetAngulo5 - imuSensor.rotation(degrees)) > 2.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo5, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+
+    while (fabs(gradosMotorObjetivo3 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo3, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidDistancia);
+
+    double targetAngulo6 = -225;
+
+    while (abs(targetAngulo6 - imuSensor.rotation(degrees)) > 2.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo6, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+
+    while (fabs(gradosMotorObjetivo3 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo3, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    resetPID(pidDistancia);
+
+    double targetAngulo7 = -315;
+
+    while (fabs(targetAngulo7 - imuSensor.rotation(degrees)) > 2.0)
+    {
+        double currentTime = t.time(msec);
+
+        double dt = (currentTime - lastTime) / 1000.0;
+
+        lastTime = currentTime;
+
+        double angle = imuSensor.rotation(degrees);
+        Brain.Screen.setFont(mono40); // Letra grande para verla bien
+        double power = computerPID(pidGiro, targetAngulo7, angle, dt);
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("Angulo: %.1f", angle);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", power);
+
+        if (power > 100)
+            power = 100;
+
+        if (power < -100)
+            power = -100;
+
+        Left.spin(forward, -power, percent);
+        Right.spin(forward, power, percent);
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
+    Left.resetPosition();
+    Right.resetPosition();
+    while (fabs(gradosMotorObjetivo3 - ((Left.position(degrees) + Right.position(degrees)) / 2)) > 5)
+    {
+        // --- Cálculo del delta de tiempo (dt) ---
+        double currentTime = t.time(msec);
+        double dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        // --- 1. Calcular la potencia base con el PID de Distancia ---
+        double posicionPromedioActual = ((Left.position(degrees) + Right.position(degrees)) / 2);
+        double potenciaBase = computerPID(pidDistancia, gradosMotorObjetivo3, posicionPromedioActual, dt);
+
+        // --- Limitar la potencia y la corrección para evitar valores extremos ---
+        if (potenciaBase > 100)
+            potenciaBase = 100;
+        if (potenciaBase < -100)
+            potenciaBase = -100;
+
+        // --- 3. Combinar y aplicar las potencias a los motores ---
+        double leftPower = potenciaBase;
+        double rightPower = potenciaBase;
+
+        Left.spin(forward, leftPower, percent);
+        Right.spin(forward, rightPower, percent);
+
+        Brain.Screen.setCursor(1, 1);
+        Brain.Screen.print("PromActual %.1f", posicionPromedioActual);
+        Brain.Screen.setCursor(2, 1);
+        Brain.Screen.print("Potencia: %.1f", potenciaBase);
+        Brain.Screen.setCursor(3, 1);
+        Brain.Screen.print("Objetivo: %.1f", gradosMotorObjetivo1);
+        Brain.Screen.setCursor(4, 1);
+        Brain.Screen.print("Izquierda: %.1f", Left.position(degrees));
+        Brain.Screen.setCursor(5, 1);
+        Brain.Screen.print("Derecha: %.1f", Right.position(degrees));
+
+        wait(20, msec);
+    }
+    Left.stop(brake);
+    Right.stop(brake);
 }
 
-// Bucle principal del robot
-/*while (true)
-{
-    if (realizarGiro)
-    {
-        // =================================================
-        // FASE 2: REALIZAR EL GIRO
-        // =================================================
-        resetPID(pidGiro);
-        pidGiro.kp = 0.4; // Constantes específicas para un giro rápido y preciso
-        pidGiro.ki = 0.005;
-        pidGiro.kd = 0.05;
-
-        double anguloActual;
-        do {
-            anguloActual = imuSensor.heading(degrees);
-            double powerGiro = computerPID(pidGiro, anguloObjetivoGiro, anguloActual, 0.02); // dt fijo para simplicidad aquí
-
-            Left.spin(forward, powerGiro, percent);
-            Right.spin(forward, -powerGiro, percent);
-
-            wait(20, msec);
-        } while (fabs(anguloActual - anguloObjetivoGiro) > 2.0);
-
-        // Giro completado, reiniciar para el próximo avance
-        realizarGiro = false;
-        Left.resetPosition(); // Reiniciar encoders para el próximo avance
-        rumboRectoObjetivo = imuSensor.heading(degrees); // El nuevo objetivo es la dirección actual
-        wait(500, msec); // Pequeña pausa
-    }
-    else
-    {
-        // =================================================
-        // FASE 1: AVANZAR EN LÍNEA RECTA
-        // =================================================
-
-        // Constantes para el avance
-        pidAvance.kp = 0.05;
-        pidAvance.ki = 0.0004;
-        pidAvance.kd = 0.005;
-
-        // Constantes para la corrección de rumbo
-        pidRumboRecto.kp = 0.5;
-        pidRumboRecto.ki = 0;
-        pidRumboRecto.kd = 0.1;
-
-        // Bucle de control para el avance
-        while (Left.position(degrees) < gradosMotorObjetivo)
-        {
-            // Leer sensores
-            double posicionActualMotor = Left.position(degrees);
-            double rumboActual = imuSensor.heading(degrees);
-
-            // Calcular las dos potencias por separado
-            double potenciaAvance = computerPID(pidAvance, gradosMotorObjetivo, posicionActualMotor, 0.02);
-            double potenciaGiroCorreccion = computerPID(pidRumboRecto, rumboRectoObjetivo, rumboActual, 0.02);
-
-            // Combinar las potencias
-            Left.spin(forward, potenciaAvance + potenciaGiroCorreccion, percent);
-            Right.spin(forward, potenciaAvance - potenciaGiroCorreccion, percent);
-
-            wait(20, msec);
-        }
-
-        // --- Transición al giro ---
-        Left.stop(brake);
-        Right.stop(brake);
-
-        // Calcular el próximo objetivo de giro
-        anguloObjetivoGiro = imuSensor.heading(degrees) + 90;
-        realizarGiro = true; // Activar la fase de giro para el siguiente ciclo del while(true)
-        wait(500, msec); // Pequeña pausa
-    }
-}*/
