@@ -25,10 +25,10 @@ void defineController(){
     last_UP = UP;
     last_DOWN = DOWN;
     t = Brain.timer(vex::timeUnits::msec);
-    A1 = Controller1.Axis1.position(vex::percentUnits::pct);
-    A2 = Controller1.Axis2.position(vex::percentUnits::pct);
-    A3 = Controller1.Axis3.position(vex::percentUnits::pct);
-    A4 = Controller1.Axis4.position(vex::percentUnits::pct);
+    A1 = Controller1.Axis2.position(vex::percentUnits::pct);
+    A2 = Controller1.Axis1.position(vex::percentUnits::pct);
+    A3 = Controller1.Axis4.position(vex::percentUnits::pct);
+    A4 = Controller1.Axis3.position(vex::percentUnits::pct);
     L1 = Controller1.ButtonL1.pressing();
     L2 = Controller1.ButtonL2.pressing();
     R1 = Controller1.ButtonR1.pressing();

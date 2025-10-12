@@ -14,7 +14,7 @@ static float left_pos_last = 0, right_pos_last = 0;
 void moveLeft(float _input) {
   if (fabs(_input) > 100) _input = sign(_input) * 100;
   _input = _input * BASE_LEFT_POWER;
-  Left.spin(directionType::fwd, (int)127 * _input, voltageUnits::mV);
+  Left.spin(directionType::rev, (int)127 * _input, voltageUnits::mV);
 }
 
 void moveLeftVel(float _input) {
@@ -45,7 +45,7 @@ void unlockLeft(void) {
 void moveRight(float _input) {
   if (fabs(_input) > 100) _input = sign(_input) * 100;
   _input = _input * BASE_RIGHT_POWER;
-  Right.spin(directionType::fwd, (int)127 * _input, voltageUnits::mV);
+  Right.spin(directionType::rev, (int)127 * _input, voltageUnits::mV);
 }
 
 /**
@@ -85,8 +85,8 @@ void moveForward(float _input) {
  * @param _input ranges from -100 : 100
 */
 void moveClockwise(float _input) {
-  moveLeft(_input);
-  moveRight(-_input);
+  moveLeft(-_input);
+  moveRight(_input);
 }
 
 /**

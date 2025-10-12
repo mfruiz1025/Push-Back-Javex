@@ -28,8 +28,8 @@ GPS::GPS() {
 */
 float GPS::calTheta(float _dx, float _dy, int _direct){
   float theta = rad2deg(atan(_dx/_dy));
-  if (_direct * _dy  < 0){
-    if (_dy * _dx > 0) theta -= 180;
+  if (_direct * _dy  > 0){
+    if (_dy * _dx < 0) theta -= 180;
     else theta += 180;
   }
   return theta;
@@ -74,8 +74,8 @@ void GPS::updateGpsPos(){
   crt_forward_pos = my_sensors.getBaseForwardPos();   
   crt_heading = my_sensors.getBaseHeading();
 
-  gps_x += (crt_forward_pos - last_forward__pos) * sin(deg2rad(0.5 * (crt_heading + last_heading)));
-  gps_y += (crt_forward_pos - last_forward__pos) * cos(deg2rad(0.5 * (crt_heading + last_heading)));
+  gps_x += (crt_forward_pos - last_forward__pos) * cos(deg2rad(0.5 * (crt_heading + last_heading)));
+  gps_y += (crt_forward_pos - last_forward__pos) * sin(deg2rad(0.5 * (crt_heading + last_heading)));
   gps_heading = crt_heading;
 
   last_forward__pos = crt_forward_pos;
@@ -131,7 +131,7 @@ void GPS::gpsPIDMove(float _x_target, float _y_target, int _direct, int _maxPowe
     my_base.posForwardAbsWithHeading(_maxPower, length_delta*_direct, heading_target);
   }
   else {
-    my_base.posForwardAbsWithHeading(_maxPower, 0.70*length_delta*_direct, heading_target);
+    my_base.posForwardAbsWithHeading(_maxPower, 0.07*length_delta*_direct, heading_target);
     my_base.PIDPosForwardAbs(length_delta*_direct, BASE_FORWARD_PID[0], BASE_FORWARD_PID[1], BASE_FORWARD_PID[2], 2);
   }
 }

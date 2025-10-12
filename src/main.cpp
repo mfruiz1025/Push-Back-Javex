@@ -39,15 +39,15 @@ void switchControlMode() {
 void joystickNewControl(){
   // Tank: left = Axis3, right = Axis2
   int leftSpeed = Controller1.Axis3.position(vex::percentUnits::pct);
-  int rightSpeed = Controller1.Axis2.position(vex::percentUnits::pct);
+  int rightSpeed = -Controller1.Axis2.position(vex::percentUnits::pct);
   Left.spin(vex::directionType::fwd, leftSpeed, vex::velocityUnits::pct);
   Right.spin(vex::directionType::fwd, rightSpeed, vex::velocityUnits::pct);
 }
 
 void twoJoysticksControl() {
   // Arcade: forward on Axis3, turn on Axis1
-  int leftSpeed = Controller1.Axis3.position(vex::percentUnits::pct) + Controller1.Axis1.position(vex::percentUnits::pct);
-  int rightSpeed = Controller1.Axis3.position(vex::percentUnits::pct) - Controller1.Axis1.position(vex::percentUnits::pct);
+  int leftSpeed = Controller1.Axis3.position(vex::percentUnits::pct) - Controller1.Axis1.position(vex::percentUnits::pct);
+  int rightSpeed = Controller1.Axis3.position(vex::percentUnits::pct) + Controller1.Axis1.position(vex::percentUnits::pct);
   Left.spin(vex::directionType::fwd, leftSpeed, vex::velocityUnits::pct);
   Right.spin(vex::directionType::fwd, rightSpeed, vex::velocityUnits::pct);
 }
@@ -60,7 +60,7 @@ void autonomous(void) {
   // SELECCIÓN DE ESTRATEGIA AUTÓNOMA MEDIANTE EL BOTÓN "RIGHT" DEL CONTROLADOR
   switch(auton_strategy) {
     case 0:
-      auton_gps_precision(); // GPS-based precise autonomous sequence
+      auton_sb(); // GPS-based precise autonomous sequence
       break;
     case 1:
       //auto two
@@ -97,12 +97,12 @@ void usercontrol(void) {
     }
 
     // Control del motor recolector y rampa usando L1 y L2
-    if (Controller1.ButtonL1.pressing()) {
-      Recolector.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
-      Rampa.spin(vex::directionType::fwd, 100, vex::velocityUnits::pct);
-    } else if (Controller1.ButtonL2.pressing()) {
-      Recolector.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
-      Rampa.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+    if (Controller1.ButtonL2.pressing()) {
+      Recolector.spin(vex::directionType::fwd, 10, vex::velocityUnits::pct);
+      Rampa.spin(vex::directionType::fwd, 10, vex::velocityUnits::pct);
+    } else if (Controller1.ButtonL1.pressing()) {
+      Recolector.spin(vex::directionType::rev, 10, vex::velocityUnits::pct);
+      Rampa.spin(vex::directionType::rev, 10, vex::velocityUnits::pct);
     } else {
       Recolector.stop(vex::brakeType::hold);
       Rampa.stop(vex::brakeType::hold);
@@ -121,22 +121,22 @@ void usercontrol(void) {
     if (Controller1.ButtonR2.pressing()) {
       while (Controller1.ButtonR2.pressing()) { wait(10, msec); }
       pistonAbierto = !pistonAbierto;
-      if (pistonAbierto) { Pinza.open(); } else { Pinza.close(); }
+      if (pistonAbierto) { Pinza.close(); } else { Pinza.open(); }
     }
 
     // Recolector neumático (mantener R1 para abrir)
-    if (Controller1.ButtonR1.pressing()) { RecolectorNeumatica.open(); } else { RecolectorNeumatica.close(); }
+    if (Controller1.ButtonR1.pressing()) { RecolectorNeumatica.close(); } else { RecolectorNeumatica.open(); }
 
     // Toggle brazo con B (espera a soltar)
     if (Controller1.ButtonB.pressing()) {
       while (Controller1.ButtonB.pressing()) { wait(10, msec); }
       piston2Abierto = !piston2Abierto;
-      if (piston2Abierto) { brazo.open(); } else { brazo.close(); }
+      if (piston2Abierto) { brazo.close(); } else { brazo.open(); }
     }
 
     // Pruebas de hardware: forzar movimiento de cada lado
-    if (Controller1.ButtonUp.pressing()) { Left.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct); }
-    if (Controller1.ButtonLeft.pressing()) { Right.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct); }
+    if (Controller1.ButtonUp.pressing()) { Left.spin(vex::directionType::rev, 50, vex::velocityUnits::pct); }
+    if (Controller1.ButtonLeft.pressing()) { Right.spin(vex::directionType::rev, 50, vex::velocityUnits::pct); }
 
     // Selección de estrategia autónoma (RIGHT) con eco en pantalla
     if (Controller1.ButtonRight.pressing()) {

@@ -18,5 +18,5 @@ void MyTimer::reset(){
  * @return time (msec) from startTime
 */
 int MyTimer::getTime() const{
-  return floor((Brain.Timer.value() - startTime) * 1000);
+  return floor((Brain.Timer.value() - startTime) * 100);
 }

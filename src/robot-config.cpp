@@ -11,17 +11,17 @@ controller Controller1 = controller(primary);
 // --- Configuración de Puertos (Exacta de AutonomoGrandeRojoBaseNormal) ---
 
 // Motores del lado izquierdo (alinear inversión con patrón del lado derecho)
-motor MotorL1(PORT10, ratio18_1, false);
-motor MotorL2(PORT9,  ratio18_1, true);
-motor MotorL3(PORT8,  ratio18_1, true);
-motor MotorL4(PORT6,  ratio18_1, false);
+motor MotorL1(PORT10, ratio18_1, true);
+motor MotorL2(PORT9,  ratio18_1, false);
+motor MotorL3(PORT8,  ratio18_1, false);
+motor MotorL4(PORT6,  ratio18_1, true);
 motor_group Left(MotorL1, MotorL2, MotorL3, MotorL4);
 
 // Motores del lado derecho
-motor MotorR1(PORT1, ratio18_1, false);
-motor MotorR2(PORT2, ratio18_1, true);
-motor MotorR3(PORT3, ratio18_1, true);
-motor MotorR4(PORT4, ratio18_1, false);
+motor MotorR1(PORT1, ratio18_1, true);
+motor MotorR2(PORT2, ratio18_1, false);
+motor MotorR3(PORT3, ratio18_1, false);
+motor MotorR4(PORT4, ratio18_1, true);
 motor_group Right(MotorR1, MotorR2, MotorR3, MotorR4);
 
 // Sensores

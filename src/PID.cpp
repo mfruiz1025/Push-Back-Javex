@@ -25,7 +25,7 @@ float PID::getOutput() { return output;}
 
 void PID::update(float input) {
   errorCrt = target - input; // calculate current error
-  P = kp * errorCrt;
+  P = -kp * errorCrt;
   if (firstTime) { // first time to update
     firstTime = false;
     errorPrev = errorCrt;
@@ -44,7 +44,7 @@ void PID::update(float input) {
   }
   if (sign(errorInt) != sign(errorCrt) || (fabs(errorCrt) <= errorTol)) // Clear I for small enough error
     errorInt = 0;
-  I = ki * errorInt; // Calculate I
+  I = -ki * errorInt; // Calculate I
   if (fabs(errorCrt) <= errorTol && fabs(D) <= DTol) { // Exit when staying in tolerated region and maintaining a low enough speed for enough time
     if (myTimer.getTime() >= jumpTime) arrived = true;
   } 

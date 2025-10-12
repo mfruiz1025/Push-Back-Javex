@@ -73,7 +73,7 @@ void auton_gps_precision(void) {
   // Precise movement forward to mid-field (1800 mm)
 
   // gpsPIDMove(x_target, y_target, direction, max_power, mode)
-  my_gps.gpsPIDMove(my_gps.getGpsX() + 1800, my_gps.getGpsY(), 1, 50, "PID");
+  my_gps.gpsPIDMove(my_gps.getGpsX() + 180, my_gps.getGpsY(), -1, 50, "PID");
 
   Pinza.close();
   wait(200, msec);
@@ -82,7 +82,7 @@ void auton_gps_precision(void) {
   wait(500, msec); // Wait for rings to fall onto stake
   
   // Extended collection to ensure rings are secured (equivalent to old: recoleccion(100, 3);)
-  recoleccion_precise(100, 3000);
+  recoleccion_precise(10, 3000);
   
   // Activate pneumatic collector
   RecolectorNeumatica.close();

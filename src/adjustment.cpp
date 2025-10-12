@@ -38,12 +38,12 @@ void tuning_forward_p() {
     float kp = 0.2;
     float input, output;
     for(int i = 0; i<10; i++) {
-        kp += 0.02;
+        kp -= 0.02;
         char filename[14];
         sprintf(filename, "forward-p-%1.2f.txt", kp);
         my_adjustment.init(filename);
         my_sensors.resetBasePos();
-        my_pid.setTarget(600);
+        my_pid.setTarget(60);
         my_pid.setCoefficient(kp, 0, 0);
         my_pid.setErrorTolerance(0.1);
         my_pid.setDTolerance(1);

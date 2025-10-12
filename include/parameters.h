@@ -5,8 +5,8 @@
 
 const float MOVEMENT_LOWER_LIMIT = 5;
 const float JOYSTICK_DEADZONE = 5;
-const float CHASSIS_GEAR_RATIO = 0.75;
-const float WHEEL_DIAMETER = 2.75;
+const float CHASSIS_GEAR_RATIO = 1.0;
+const float WHEEL_DIAMETER = 1.0;
 
 #ifdef ROBOT_ONE
   const float BASE_FORWARD_PID[3] = {0, 0, 0};
@@ -30,13 +30,13 @@ const float WHEEL_DIAMETER = 2.75;
 
 // Default values if no robot is specified
 #if !defined(ROBOT_ONE) && !defined(ROBOT_TWO)
-  const float BASE_FORWARD_PID[3] = {0, 0, 0};
-  const float BASE_FORWARD_COEFF = 1;
-  const float BASE_LEFT_POWER = 1.0;
-  const float BASE_RIGHT_POWER = 1.0;
+  const float BASE_FORWARD_PID[3] = {5, 0, 0};
+  const float BASE_FORWARD_COEFF = 0;
+  const float BASE_LEFT_POWER = 0.0;
+  const float BASE_RIGHT_POWER = 0.0;
   const float BASE_ROTATE_BIG_PID[3] = {0, 0, 0};
   const float BASE_ROTATE_SMALL_PID[3] = {0, 0, 0};
-  const float IMU_HEADING_5 = 1800;
+  const float IMU_HEADING_5 = 180;
 #endif
 
 #endif

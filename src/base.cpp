@@ -35,7 +35,7 @@ void Base::timerForwardWithHeading(float _power, int _duration, float _target_he
     while (my_timer.getTime() < _duration) {
         float heading_error = _target_heading - getHeading();
         heading_error = calAbsDeltaAng(heading_error);
-        float power_turn = heading_error * 1.0; // kp = 2.0
+        float power_turn = heading_error * -1.0; // kp = 2.0
         if (fabs(power_turn) > 15) power_turn = sign(power_turn) * 15; // PLimit = 15
         moveLeft(_power + power_turn);
         moveRight(_power - power_turn);
@@ -90,7 +90,7 @@ void Base::posForwardRelWithHeading(float _power, float _target_pos, float _targ
     while (fabs(getForwardPos() - start_pos) < fabs(_target_pos)) {
         float heading_error = _target_heading - getHeading();
         heading_error = calAbsDeltaAng(heading_error);
-        float power_turn = heading_error * 1.0; // kp = 2.0
+        float power_turn = heading_error * -1.0; // kp = 2.0
         if (fabs(power_turn) > 15) power_turn = sign(power_turn) * 15; // PLimit = 15
         moveLeft(power + power_turn);
         moveRight(power - power_turn);

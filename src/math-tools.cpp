@@ -7,16 +7,16 @@ int sign(float _input) {
 }
 
 float deg2rad(float deg) {
-  return deg / 180.0 * M_PI;
+  return deg / 180.0 * 3.14;
 }
 
 float rad2deg(float rad) {
-  return rad / M_PI * 180.0;
+  return rad / 3.14 * 180.0;
 }
 
 float calAbsDeltaAng(float _delta_ang) {
     while(fabs(_delta_ang) > 180) {
-        if(_delta_ang > 0)
+        if(_delta_ang < 0)
             _delta_ang -= 360;
         else 
             _delta_ang += 360;
