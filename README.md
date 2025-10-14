@@ -11,7 +11,7 @@
 
 #### PID BASICO:
 
-# Ejemplo de Código C++
+#### Ejemplo de Código C++
 
 ```C++
 MiniPID pid=MiniPID(1,0,0);
@@ -25,6 +25,8 @@ while(true){
   delay(50);
 }
 ```
+
+### Implementacion con sensor de inercia
 
 
 ###### Fuentes usadas:
