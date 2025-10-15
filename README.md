@@ -62,7 +62,42 @@ double update(double error, double dt) {
 };
 
 ```
-### Implementacion con sensor de inercia
+## Ajustes que se necesitan:
+
+Kp=0.6: fuerza principal para alcanzar distancia.
+    * Aumentar si: avance muy lento.
+    *Disminuir si: overshoot / oscila al parar.
+* Ki=0.001: corrige error estacionario en distancia.
+    * Aumentar si: siempre queda corto (error persistente).
+    * Disminuir si: aparece oscilación lenta o integral crece mucho.
+* Kd=0.02: amortigua llegada.
+    * Aumentar si: rebota al llegar.
+    * Disminuir si: amplifica ruido o frena demasiado.
+* integral limits = [-500,500] → reduce windup
+
+  
+pidHeading(1.5, 0.0, 0.05)
+* Kp=1.5: corrige desviaciones de rumbo
+    * Aumentar si: se desvía mucho
+    * Disminuir si: hace correcciones bruscas/oscila
+* Ki=0.0: normalmente no se usa en heading
+* Kd=0.05: suaviza correcciones
+    * Aumentar si: overshoot en correcciones
+    * Disminuir si: ruido amplificado
+      
+pidRotate(0.9, 0.0005, 0.04)
+* Kp=0.9: gira con fuerza proporcional
+    * Aumentar si: giro lento
+    * Disminuir si: rebasa y oscila
+* Ki=0.0005: corrige pequeño error final
+    * Aumentar si: queda angulo persistente
+    * Disminuir si: deriva u oscilación lenta
+* Kd=0.04: amortigua giro
+    * Aumentar si: rebotes al frenar
+    *Disminuir si: respuesta muy lenta o ruido
+
+
+
 
 
 ###### Fuentes usadas:
