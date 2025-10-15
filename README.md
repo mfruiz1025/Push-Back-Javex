@@ -25,7 +25,43 @@ while(true){
   delay(50);
 }
 ```
+### Codigo reutilizable
 
+```C++
+// PID simple reutilizable
+struct PID {
+  double kp, ki, kd;
+  double integral = 0.0;
+  double lastError = 0.0;
+  double outMin = -100.0;
+  double outMax = 100.0;
+  double integralMin = -1e6;
+  double integralMax = 1e6;
+
+  PID(double p=0,double i=0,double d=0) : kp(p), ki(i), kd(d) {}
+
+  void setOutputLimits(double minv, double maxv) { outMin = minv; outMax = maxv; }
+  void setIntegralLimits(double minv, double maxv) { integralMin = minv; integralMax = maxv; }
+
+  void reset() { integral = 0.0; lastError = 0.0; }
+
+double update(double error, double dt) {
+    if(dt <= 0.0) dt = 0.02;
+    integral += error * dt;
+    // anti-windup integral clamp
+    if(integral > integralMax) integral = integralMax;
+    if(integral < integralMin) integral = integralMin;
+    double derivative = (error - lastError) / dt;
+    double out = kp * error + ki * integral + kd * derivative;
+    // clamp output
+    if(out > outMax) out = outMax;
+    if(out < outMin) out = outMin;
+    lastError = error;
+    return out;
+  }
+};
+
+```
 ### Implementacion con sensor de inercia
 
 
