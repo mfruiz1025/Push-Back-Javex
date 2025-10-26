@@ -22,7 +22,6 @@ void joystickNewControl(){
   RightDrive.spin(forward, rightSpeed, percent); 
 }
 
-
 // Función para controlar con dos joysticks
 void twoJoysticksControl() {
     int leftSpeed = Controller.Axis3.position()+Controller.Axis1.position();

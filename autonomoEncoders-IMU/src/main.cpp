@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
-/*    Author:       David                                                     */
+/*    Author:       USER                                                      */
 /*    Created:      10/9/2025, 4:48:29 PM                                     */
 /*    Description:  V5 project                                                */
 /*                                                                            */
@@ -14,8 +14,33 @@
 
 using namespace vex;
 
-// A global instance of competition
+brain Brain;
+controller Controller;
+
+// Instanciar motores y sensores inerciales
 competition Competition;
+inertial inertialSensor = inertial(PORT11);
+
+motor LeftMotor4 = motor(PORT6, gearSetting::ratio18_1, true);
+motor LeftMotor1 = motor(PORT8, gearSetting::ratio18_1, false);
+motor LeftMotor2 = motor(PORT9, gearSetting::ratio18_1, true);
+motor LeftMotor3 = motor(PORT10, gearSetting::ratio18_1, false);
+
+motor RightMotor1 = motor(PORT1, gearSetting::ratio18_1, true);
+motor RightMotor2 = motor(PORT2, gearSetting::ratio18_1, false);
+motor RightMotor3 = motor(PORT3, gearSetting::ratio18_1, true);
+motor RightMotor4 = motor(PORT4, gearSetting::ratio18_1, false);
+
+motor leftRecolection = motor(PORT12, gearSetting::ratio18_1, true);
+motor leftRecolection2 = motor(PORT14, gearSetting::ratio18_1, false);
+motor rightRecolection = motor(PORT13, gearSetting::ratio18_1, false);
+
+motor_group LeftDrive = motor_group(LeftMotor1, LeftMotor2, LeftMotor3, LeftMotor4);
+motor_group RightDrive = motor_group(RightMotor1, RightMotor2, RightMotor3, RightMotor4);
+motor_group Recoleccion = motor_group(leftRecolection, leftRecolection2, rightRecolection);
+
+// Var PID
+PID pid;
 
 // define your global instances of motors and other devices here
 
@@ -50,25 +75,47 @@ void pre_auton(void) {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
+  pid.kp = 0.3;
+  pid.ki = 0.009;
+  pid.kd = 0.035;
   // ..........................................................................
-  
-  // PASO 1: Movimiento recto, recolectar el primer ring y giro derecha 90 grados
-  moveDistance(14, 90); // Mover hacia adelante 14 pulgadas a velocidad 90%
-  rotateOnAxis(90, 60); // Girar a la derecha 90 grados a velocidad 60%
+  calibrateInertial();
 
-  // PASO 2: Movimiento recto, recolectar el segundo ring y giro izquierda 30 grados
-  moveDistance(24, 90); // Mover hacia adelante 24 pulgadas a velocidad 90%
-  rotateOnAxis(-30, 60); // Girar a la izquierda 30 grados a velocidad 60%
+  // PASO 1: Movimiento recto, girar y avanzar hacia el Goal del medio
+  moveDistance(14, 40); // Mover hacia adelante 14 pulgadas a velocidad 40%
+  rotateOnAxis(-45, 40, pid); // Girar a la izquierda 45 grados a velocidad 40%
+  moveDistanceRecolection(2, 40); // Mover hacia adelante 5 pulgadas a velocidad 80%
+  activarRecoleccion(80, 1); // Activar recolección durante 1 segundo a velocidad 80%
 
-  // PASO 3: Movimiento recto, recolectar el block naranja y giro derecha 90 grados
-  moveDistance(14, 90); // Mover hacia adelante 14 pulgadas a velocidad 90%
-  rotateOnAxis(90, 60); // Girar a la derecha 60 grados a velocidad 60%
+  //PASO 2: Dirigirse al Loader y recolectar bloques
+  moveDistance(17, -50); // Mover hacia adelante 17 pulgadas a velocidad 50%
+  rotateOnAxis(-180, 50, pid); // Girar a la izquierda 180 grados a velocidad 50%
+  moveDistance(1, 50); // Mover hacia adelante 1 pulgada a velocidad 50%
+  activarRecoleccion(80, 1); // Activar recolección durante 1 segundo a velocidad 80%
 
-  // PASO 4: Movimiento recto, recolectar el ring rojo y giro de 30 grados
-  moveDistance(24, 90); // Mover hacia adelante 24 pulgadas a velocidad 90%
-  rotateOnAxis(-30, 60); // Girar a la izquierda 30 grados a velocidad 60%
+  //PASO 3: Rotar y dirigirse al otro Loader
+  moveDistance(2, -60); // Mover hacia adelante 2 pulgadas a velocidad 60%
+  rotateOnAxis(0, 50, pid); // Girar a la izquierda 0 grados a velocidad 50%
+  moveDistance(2, 60); // Mover hacia adelante 2 pulgadas a velocidad 60%
+  activarRecoleccion(80, 1); // Activar recolección durante 1 segundo a velocidad 80%
 
-  
+  //PASO 3: Rotar y dirigirse al Loader
+  moveDistance(2, -60); // Mover hacia adelante 2 pulgadas a velocidad 60%
+  rotateOnAxis(-180, 50, pid); // Girar a la izquierda 180 grados a velocidad 50%
+  moveDistance(3, 60);
+  activarRecoleccion(80, 1);
+
+  //PASO 4: Rotar y dirigirse al Goal
+  moveDistance(2, -60);
+  rotateOnAxis(0, 50, pid);
+  moveDistance(2, 60);
+  activarRecoleccion(80, 1);
+
+  //PASO 4: Rotar e ir a la Parking Zone
+  moveDistance(5, -60);
+  rotateOnAxis(-90, 60, pid);
+  moveDistance(10, 80);
+
 
   // ..........................................................................
 }
@@ -103,11 +150,11 @@ void usercontrol(void) {
           joystickNewControl(); 
       }
   
-      // Control del motor recolector y rampa usando L1 y L2
+      // Control de la recoleccion L1(Sube) y L2(Baja)
       if (Controller.ButtonL1.pressing()) {
-          Recoleccion.spin(directionType::fwd, 100, velocityUnits::pct);
-      } else if (Controller.ButtonL2.pressing()) {
           Recoleccion.spin(directionType::rev, 100, velocityUnits::pct);
+      } else if (Controller.ButtonL2.pressing()) {
+          Recoleccion.spin(directionType::fwd, 100, velocityUnits::pct);
       } else {
           Recoleccion.stop(brakeType::hold);
       }
